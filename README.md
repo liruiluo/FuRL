@@ -8,6 +8,10 @@ Install the conda env via:
 conda create --name furl python==3.11
 conda activate furl
 pip install -r requirements.txt
+cd humanoid-bench/ 
+pip install -e .
+cd ..
+pip install torch torchvision torchaudio
 ```
 
 ## Training
