@@ -42,7 +42,7 @@ def eval_policy(agent: SACAgent,
             obs, reward, terminated, truncated, info = env.step(action)
             eval_reward += reward
             if terminated or truncated:
-                eval_success += info["success"] 
+                eval_success += info.get("success", 0)
                 break
 
     eval_reward /= eval_episodes
@@ -83,7 +83,10 @@ def setup_exp(config):
         token = clip.tokenize([TASKS[config.env_name]])
         text_embedding = liv(input=token, modality="text")
     text_embedding = text_embedding.detach().cpu().numpy()
-    data = np.load(f"data/oracle/{config.env_name}/s0_c{config.camera_id}.npz")
+    if config.goal:
+        data = np.load(f"data/oracle/{config.env_name}/s0_c{config.camera_id}.npz")
+    else:
+        data = np.load(f"data/oracle/door-open-v2-goal-hidden/s0_c2.npz")
 
     # goal_embedding / text_embedding
     oracle_images = data["images"]
@@ -249,10 +252,13 @@ def train_and_evaluate(config: ml_collections.ConfigDict):
         with torch.no_grad():
             image_embedding = liv(input=processed_image.to("cuda")[None], modality="vision")
         image_embedding = image_embedding.detach().cpu().numpy()
-        l2_distance = np.square(image_embedding - vlm_agent.goal_embedding).sum(-1)**0.5
+        if config.goal:
+            l2_distance = np.square(image_embedding - vlm_agent.goal_embedding).sum(-1)**0.5
+        else:
+            l2_distance = np.square(image_embedding - image_embedding).sum(-1)**0.5
         vlm_reward = reward_model.get_vlm_reward(reward_model.proj_state, image_embedding).item()
 
-        reward = int(info["success"])
+        reward = int(info.get("success", 0))
         success_cnt += reward
 
         traj_embeddings[ep_step] = image_embedding

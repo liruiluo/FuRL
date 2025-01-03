@@ -29,6 +29,18 @@ TASKS = {
     "reach-v2-goal-observable": "reach a goal position",
     "pick-place-v2-goal-observable": "pick and place a puck to a goal",
     "peg-insert-side-v2-goal-observable": "insert a peg sideways",
+    # mujoco
+    "h1hand-run": "a humanoid robot running",
+    "h1hand-sit_hard": "a humanoid robot sitting on a chair",
+    "h1hand-powerlift": "a humanoid robot performs clean and jerk",
+    "h1hand_balance_hard": "a humanoid robot balancing on the board",
+    "h1hand_crawl": "a humanoid robot crawling",
+    "h1hand_push": "a humanoid robot pushing a box to the target",
+    "h1hand_reach": "a humanoid robot reaching the 3D point with the left hand",
+    "customized_humanoid": "a humanoid robot running",
+    "h1hand_basketball": "a humanoid robot throwing a ball into the basket",
+    "h1hand_cabinet": "a humanoid robot opening a cabinet door and putting a cube inside",
+    "h1hand_slide": "a humanoid robot walking",
 }
 
 
@@ -116,9 +128,11 @@ def make_env(env_name: str = "drawer-open-v2-goal-hidden",
 
     if "hidden" in env_name:
         env = ALL_V2_ENVIRONMENTS_GOAL_HIDDEN[env_name](seed=seed)
-    else:
+    elif "observable" in env_name:
         env = ALL_V2_ENVIRONMENTS_GOAL_OBSERVABLE[env_name](seed=seed, render_mode=render_mode)
         env._freeze_rand_vec = False
+    else:
+        env = gym.make(env_name, seed=seed, render_mode=render_mode)
     env.camera_id = camera_id
     viewer = env.unwrapped.mujoco_renderer._get_viewer(render_mode=render_mode)
     viewer.viewport.width = image_size

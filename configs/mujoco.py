@@ -9,7 +9,7 @@ def get_config():
     config.residual = False
     config.eval_episodes = 100
     config.start_timesteps = 10000
-    config.max_timesteps = int(2e4)
+    config.max_timesteps = int(1e7)
     config.decay_timesteps = int(7.5e5)
     config.eval_freq = config.max_timesteps // 10
     config.log_freq = config.max_timesteps // 100
@@ -34,7 +34,7 @@ def get_config():
     config.l2_margin = 0.25
     config.cosine_margin = 0.25
     config.embed_buffer_size = 20000
-
-    config.goal = False
     
+    config.goal = False
+
     return config

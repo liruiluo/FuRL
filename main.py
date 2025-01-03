@@ -2,6 +2,7 @@ from absl import app, flags
 from ml_collections import config_flags
 import os
 import experiments
+from humanoid_bench.env import ROBOTS, TASKS
 
 config_flags.DEFINE_config_file("config", default="configs/metaworld.py")
 FLAGS = flags.FLAGS
