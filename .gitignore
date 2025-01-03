@@ -6,3 +6,5 @@ imgs*
 saved_videos*
 saved_models*
 outputs
+slurm
+furl.sh

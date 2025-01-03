@@ -2,7 +2,7 @@ from absl import app, flags
 from ml_collections import config_flags
 import os
 import experiments
-from humanoid_bench.env import ROBOTS, TASKS
+import env
 
 config_flags.DEFINE_config_file("config", default="configs/metaworld.py")
 FLAGS = flags.FLAGS
@@ -10,6 +10,7 @@ FLAGS = flags.FLAGS
 
 def main(argv):
     config = FLAGS.config
+    print(f"Loaded config: {config}")
 
     try:
         if config.exp_name == "oracle":
