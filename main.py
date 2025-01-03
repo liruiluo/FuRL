@@ -4,7 +4,7 @@ import os
 import experiments
 import env
 
-config_flags.DEFINE_config_file("config", default="configs/metaworld.py")
+config_flags.DEFINE_config_file("config", default="configs/mujoco.py")
 FLAGS = flags.FLAGS
 
 

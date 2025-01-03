@@ -30,17 +30,17 @@ TASKS = {
     "pick-place-v2-goal-observable": "pick and place a puck to a goal",
     "peg-insert-side-v2-goal-observable": "insert a peg sideways",
     # mujoco
-    "h1hand-run": "a humanoid robot running",
-    "h1hand-sit_hard": "a humanoid robot sitting on a chair",
-    "h1hand-powerlift": "a humanoid robot performs clean and jerk",
-    "h1hand_balance_hard": "a humanoid robot balancing on the board",
-    "h1hand_crawl": "a humanoid robot crawling",
-    "h1hand_push": "a humanoid robot pushing a box to the target",
-    "h1hand_reach": "a humanoid robot reaching the 3D point with the left hand",
+    "h1hand-run-customized-v0": "a humanoid robot running",
+    "h1hand-sit_hard-customized-v0": "a humanoid robot sitting on a chair",
+    "h1hand-powerlift-customized-v0": "a humanoid robot performs clean and jerk",
+    "h1hand_balance_hard-customized-v0": "a humanoid robot balancing on the board",
+    "h1hand_crawl-customized-v0": "a humanoid robot crawling",
+    "h1hand_push-customized-v0": "a humanoid robot pushing a box to the target",
+    "h1hand_reach-customized-v0": "a humanoid robot reaching the 3D point with the left hand",
     "customized_humanoid": "a humanoid robot running",
-    "h1hand_basketball": "a humanoid robot throwing a ball into the basket",
-    "h1hand_cabinet": "a humanoid robot opening a cabinet door and putting a cube inside",
-    "h1hand_slide": "a humanoid robot walking",
+    "h1hand_basketball-customized-v0": "a humanoid robot throwing a ball into the basket",
+    "h1hand_cabinet-customized-v0": "a humanoid robot opening a cabinet door and putting a cube inside",
+    "h1hand_slide-customized-v0": "a humanoid robot walking",
 }
 
 
