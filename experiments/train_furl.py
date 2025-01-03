@@ -198,8 +198,8 @@ def train_and_evaluate(config: ml_collections.ConfigDict):
     embedding_buffer = EmbeddingBuffer(emb_dim=1024,
                                        gap=config.gap,
                                        max_size=config.embed_buffer_size)
-    traj_embeddings = np.zeros((500, 1024))
-    traj_success = np.zeros(500)
+    traj_embeddings = np.zeros((1000, 1024))
+    traj_success = np.zeros(1000)
 
     # relay freqs
     relay_freqs = [50, 100, 150, 200]
@@ -352,7 +352,7 @@ def train_and_evaluate(config: ml_collections.ConfigDict):
                 batch = replay_buffer.sample_with_mask(config.batch_size, config.l2_margin)
                 proj_log_info = reward_model.update_neg(batch)
                 batch_vlm_rewards = proj_log_info.pop("vlm_rewards")
-                log_info = vlm_agent.update(batch, batch_vlm_rewards)
+                log_info = vlm_agent.update(batch, batch_vlm_rewards+batch.rewards)
                 pos_loss = proj_log_info["pos_loss"]
 
             # update SAC agent
@@ -428,6 +428,9 @@ def train_and_evaluate(config: ml_collections.ConfigDict):
                     f"task_reward: {lst_ep_task_reward:.2f}, "
                     f"vlm_reward: {lst_ep_vlm_reward:.2f}\n"
                 )
+            # save logs
+            log_df = pd.DataFrame(logs)
+            log_df.to_csv(f"logs/{exp_name}.csv")
 
 
     # save logs
