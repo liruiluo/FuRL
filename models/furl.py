@@ -233,7 +233,7 @@ class FuRLAgent:
                    critic_target_params: FrozenDict):
 
         key1, key2 = jax.random.split(key)
-        vlm_rewards = vlm_rewards + batch.rewards
+        vlm_rewards = vlm_rewards*0.1 + batch.rewards
         new_alpha_state, new_actor_state, actor_log_info = self.actor_alpha_train_step(
             batch, key1, alpha_state, actor_state, critic_state)
         alpha = actor_log_info["alpha"]

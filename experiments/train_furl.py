@@ -18,7 +18,9 @@ import torchvision.transforms as T
 from tqdm import trange
 from models import SACAgent, FuRLAgent, RewardModel
 from utils import (TASKS, DistanceBuffer, EmbeddingBuffer, log_git,
-                   get_logger, make_env, load_liv)
+                   get_logger, make_env, load_liv,TASKS_TARGET)
+import wandb
+import jax.numpy as jnp
 
 
 ###################
@@ -31,7 +33,7 @@ def crop_center(config, image):
 
 def eval_policy(agent: SACAgent,
                 env: gym.Env,
-                eval_episodes: int = 10):
+                eval_episodes: int = 10, success_reward: float = 0.0):
     t1 = time.time()
     eval_reward, eval_success, avg_step = 0, 0, 0
     for i in range(1, eval_episodes + 1):
@@ -42,7 +44,7 @@ def eval_policy(agent: SACAgent,
             obs, reward, terminated, truncated, info = env.step(action)
             eval_reward += reward
             if terminated or truncated:
-                eval_success += info.get("success", 0)
+                eval_success += eval_reward > success_reward
                 break
 
     eval_reward /= eval_episodes
@@ -61,6 +63,14 @@ def setup_logging(config):
     exp_info = f"# Running experiment for: {exp_name} #"
     print("#" * len(exp_info) + f"\n{exp_info}\n" + "#" * len(exp_info))
     logger = get_logger(f"logs/{exp_name}.log")
+
+    # Initialize wandb
+    wandb.init(
+        project="furl_mujoco",  # Change this to your wandb project name
+        name=exp_name,
+        config=config.to_dict(),
+    )
+    wandb.config.update({"timestamp": timestamp})  # Additional metadata
 
     # add git commit info
     log_git(config)
@@ -140,6 +150,7 @@ def setup_exp(config):
 
     # Initialize the reward model
     reward_model = RewardModel(seed=config.seed,
+                               state_dim=obs_dim,
                                text_embedding=text_embedding,
                                goal_embedding=goal_embedding)
 
@@ -147,7 +158,10 @@ def setup_exp(config):
     replay_buffer = DistanceBuffer(obs_dim=obs_dim,
                                    act_dim=act_dim,
                                    max_size=int(5e5))
-
+    # Replay buffer
+    replay_buffer_distill = DistanceBuffer(obs_dim=obs_dim,
+                                   act_dim=act_dim,
+                                   max_size=int(5e5))
     return (
         transform,
         liv,
@@ -158,6 +172,7 @@ def setup_exp(config):
         reward_model,
         replay_buffer,
         goal_image,
+        replay_buffer_distill,
     )
 
 
@@ -179,13 +194,15 @@ def train_and_evaluate(config: ml_collections.ConfigDict):
      sac_agent,
      reward_model,
      replay_buffer,
-     goal_image) = setup_exp(config)
+     goal_image,
+     replay_buffer_distill) = setup_exp(config)
+    sucess_reward = TASKS_TARGET[config.env_name]
 
     # reward for untrained agent
     eval_episodes = 1 if "hidden" in config.env_name else 10
     eval_reward, eval_success, _, _ = eval_policy(vlm_agent,
                                                   eval_env,
-                                                  eval_episodes)
+                                                  eval_episodes,sucess_reward)
     logs = [{
         "step": 0,
         "eval_reward": eval_reward,
@@ -250,29 +267,41 @@ def train_and_evaluate(config: ml_collections.ConfigDict):
         processed_image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         processed_image = transform(processed_image)
         with torch.no_grad():
-            image_embedding = liv(input=processed_image.to("cuda")[None], modality="vision")
-        image_embedding = image_embedding.detach().cpu().numpy()
+            if t%config.liv_freq == 0:
+                image_embedding = liv(input=processed_image.to("cuda")[None], modality="vision") # torch.Size([1, 1024])
+                image_embedding = image_embedding.detach().cpu().numpy()
+                # add to buffer
+                replay_buffer_distill.add(obs,
+                                action,
+                                next_obs,
+                                reward,
+                                terminated,
+                                image_embedding,
+                                l2_distance)
+            else:
+                image_embedding = reward_model.get_state_embeddings(reward_model.proj_state, jnp.array(next_obs)) # next_obs (151,)
         if config.goal:
             l2_distance = np.square(image_embedding - vlm_agent.goal_embedding).sum(-1)**0.5
         else:
-            l2_distance = np.square(image_embedding - image_embedding).sum(-1)**0.5
-        vlm_reward = reward_model.get_vlm_reward(reward_model.proj_state, image_embedding).item()
+            l2_distance = 0
+        vlm_reward = reward_model.get_vlm_reward(reward_model.proj_state, image_embedding).item()*0.1
 
-        reward = int(info.get("success", 0))
-        success_cnt += reward
+        reward = task_reward
+        success = (ep_task_reward > sucess_reward)+0.0
+        success_cnt += success
 
         traj_embeddings[ep_step] = image_embedding
-        traj_success[ep_step] = reward
+        traj_success[ep_step] = success
         ep_step += 1
 
-        if first_success_step == 0 and reward:
+        if first_success_step == 0 and success:
             first_success_step = ep_step
 
         # add to buffer
         replay_buffer.add(obs,
                           action,
                           next_obs,
-                          reward-1,
+                          reward,
                           terminated,
                           image_embedding,
                           l2_distance)
@@ -324,96 +353,64 @@ def train_and_evaluate(config: ml_collections.ConfigDict):
 
         # training
         if  t > config.start_timesteps:
-            if (success_cnt > 0) and (embedding_buffer.valid_size > 0):
-                batch = replay_buffer.sample(config.batch_size)
-                embedding_batch = embedding_buffer.sample(config.batch_size)
-                batch_vlm_rewards = reward_model.get_vlm_reward(reward_model.proj_state,
-                                                                batch.embeddings)
-                proj_log_info = reward_model.update_pos(embedding_batch)
-                log_info = vlm_agent.update(batch, batch_vlm_rewards)
-                pos_cosine = proj_log_info["pos_cosine"]
-                neg_cosine = proj_log_info["neg_cosine"]
-                lag_cosine = proj_log_info["lag_cosine"]
-                pos_cosine_max = proj_log_info["pos_cosine_max"]
-                neg_cosine_max = proj_log_info["neg_cosine_max"]
-                lag_cosine_max = proj_log_info["lag_cosine_max"]
-                pos_cosine_min = proj_log_info["pos_cosine_min"]
-                neg_cosine_min = proj_log_info["neg_cosine_min"]
-                lag_cosine_min = proj_log_info["lag_cosine_min"]
-                neg_num = proj_log_info["neg_num"]
-                neg_loss = proj_log_info["neg_loss"]
-                neg_loss_max = proj_log_info["neg_loss_max"]
-                pos_num = proj_log_info["pos_num"]
-                pos_loss = proj_log_info["pos_loss"]
-                pos_loss_max = proj_log_info["pos_loss_max"]
+            if t % config.train_freq == 0:
+                for i in range(config.gradient_steps):
+                    if (success_cnt > 0) and (embedding_buffer.valid_size > 0):
+                        batch = replay_buffer.sample(config.batch_size)
+                        batch_distill = replay_buffer_distill.sample(config.batch_size)
+                        embedding_batch = embedding_buffer.sample(config.batch_size)
+                        if t % (config.train_freq*10) == 0:
+                            proj_log_info = reward_model.update_pos(embedding_batch)
+                            loss_info = reward_model.update_state(batch_distill)
+                        batch_vlm_rewards = reward_model.get_vlm_reward(reward_model.proj_state, batch.embeddings)
+                        log_info = vlm_agent.update(batch, batch_vlm_rewards)
 
-            # collected zero successful trajectory
-            else:
-                batch = replay_buffer.sample_with_mask(config.batch_size, config.l2_margin)
-                proj_log_info = reward_model.update_neg(batch)
-                batch_vlm_rewards = proj_log_info.pop("vlm_rewards")
-                log_info = vlm_agent.update(batch, batch_vlm_rewards+batch.rewards)
-                pos_loss = proj_log_info["pos_loss"]
+                    # # # collected zero successful trajectory
+                    else:
+                        batch = replay_buffer.sample_with_mask(config.batch_size, config.l2_margin)
+                        batch_distill = replay_buffer_distill.sample(config.batch_size)
+                        if t % (config.train_freq*10) == 0:
+                            loss_info = reward_model.update_state(batch_distill)
+                        proj_log_info = reward_model.update_neg(batch)
+                        batch_vlm_rewards = proj_log_info.pop("vlm_rewards")
+                        log_info = vlm_agent.update(batch, batch_vlm_rewards)
+                #     # if t==config.start_timesteps+1:
+                #     #     proj_log_info = reward_model.update_neg(batch)
+                #     #     batch_vlm_rewards = proj_log_info.pop("vlm_rewards")
+                #     #     log_info = vlm_agent.update(batch, batch_vlm_rewards)
+                    #     pos_loss = proj_log_info["pos_loss"]
 
-            # update SAC agent
-            if use_relay: _ = sac_agent.update(batch)
+                    # update SAC agent
+                    if use_relay: _ = sac_agent.update(batch)
 
         # eval
         if t % config.eval_freq == 0:
             eval_reward, eval_success, _, _ = eval_policy(vlm_agent,
                                                           eval_env,
-                                                          eval_episodes)
+                                                          eval_episodes,sucess_reward)
 
         # logging
-        if t % config.log_freq == 0:
+        if t % config.log_freq == 0 and t % config.train_freq == 0:
             if t > config.start_timesteps:
-                log_info.update({
+                # print(loss_info)
+                log_info_now = {
                     "step": t,
-                    "success": reward,
+                    "success": success,
                     "task_reward": lst_ep_task_reward,
                     "vlm_reward": lst_ep_vlm_reward,
                     "eval_reward": eval_reward,
                     "eval_success": eval_success,
-                    "batch_reward": batch.rewards.mean(),
-                    "batch_reward_max": batch.rewards.max(),
-                    "batch_reward_min": batch.rewards.min(),
-                    "batch_vlm_reward": batch_vlm_rewards.mean(),
-                    "batch_vlm_reward_max": batch_vlm_rewards.max(),
-                    "batch_vlm_reward_min": batch_vlm_rewards.min(),
-                    "time": (time.time() - start_time) / 60
-                })
-                logger.info(
-                    f"\n[T {t//1000}K][{log_info['time']:.2f} min] "
-                    f"task_reward: {lst_ep_task_reward:.2f}, "
-                    f"vlm_reward: {lst_ep_vlm_reward:.2f}\n"
-                    f"\tvlm_reward: {eval_reward:.2f}, vlm_success: {eval_success:.0f}, "
-                    f"vlm_step: {lst_vlm_step}\n"
-                    f"\tq_loss: {log_info['critic_loss']:.3f}, "
-                    f"a_loss: {log_info['alpha_loss']:.3f}, "
-                    f"q: {log_info['q']:.3f}, q_max: {log_info['q_max']:.3f}\n"
-                    f"\tR: {log_info['batch_reward']:.3f}, "
-                    f"Rmax: {log_info['batch_reward_max']:.3f}, "
-                    f"Rmin: {log_info['batch_reward_min']:.3f}\n"
-                    f"\tvlm_R: {log_info['batch_vlm_reward']:.3f}, "
-                    f"vlm_Rmax: {log_info['batch_vlm_reward_max']:.3f}, "
-                    f"vlm_Rmin: {log_info['batch_vlm_reward_min']:.3f}\n"
-                    f"\tep_num: {ep_num}, success_cnt: {success_cnt}, "
-                    f"success: {reward}\n"
-                    f"\tpos_ptr: {embedding_buffer.pos_ptr}, "
-                    f"valid_ptr: {embedding_buffer.valid_ptr}, "
-                    f"neg_ptr: {embedding_buffer.neg_ptr}\n"
-                    f"\tpNum: {pos_num}, pLoss: {pos_loss:.3f}, pLossMax: {pos_loss_max:.3f}\n"
-                    f"\tnNum: {neg_num}, nLoss: {neg_loss:.3f}, nLossMax: {neg_loss_max:.3f}\n"
-                    f"\tpCos: {pos_cosine:.2f}, pCos_max: {pos_cosine_max:.2f}, "
-                    f"pCos_min: {pos_cosine_min:.2f}\n"
-                    f"\tnCos: {neg_cosine:.2f}, nCos_max: {neg_cosine_max:.2f}, "
-                    f"nCos_min: {neg_cosine_min:.2f}\n"
-                    f"\tlCos: {lag_cosine:.2f}, lCos_max: {lag_cosine_max:.2f}, "
-                    f"lCos_min: {lag_cosine_min:.2f}\n"
-                    f"\tgoal: ({goal[0]:.3f}, {goal[1]:.3f}, {goal[2]:.3f}), "
-                    f"rvlm_R: {log_info['rvlm_reward']:.4f}\n"
-                )
-                logs.append(log_info)
+                    "state_loss": loss_info['mse_loss'],
+                    # "batch_reward": batch.rewards.mean(),
+                    # "batch_reward_max": batch.rewards.max(),
+                    # "batch_reward_min": batch.rewards.min(),
+                    # "batch_vlm_reward": batch_vlm_rewards.mean(),
+                    # "batch_vlm_reward_max": batch_vlm_rewards.max(),
+                    # "batch_vlm_reward_min": batch_vlm_rewards.min(),
+                    "time": (time.time() - start_time) / 60,
+                    "global_step": t,
+                }
+                wandb.log(log_info_now)
             else:
                 logs.append({
                     "step": t,
@@ -437,6 +434,7 @@ def train_and_evaluate(config: ml_collections.ConfigDict):
     log_df = pd.DataFrame(logs)
     log_df.to_csv(f"logs/{exp_name}.csv")
 
+    wandb.finish()
     # close env
     env.close()
     eval_env.close()

@@ -149,27 +149,63 @@ class RewardModel:
     def train_neg_step(self,
                        batch,
                        proj_state):
-        def loss_fn(params):
-            proj_text_embedding = self.proj.apply(
-                {"params": params}, self.text_embedding,
-                method=self.proj.encode_text)
+        # def loss_fn(params):
+        #     proj_text_embedding = self.proj.apply(
+        #         {"params": params}, self.text_embedding,
+        #         method=self.proj.encode_text)
 
-            proj_embeddings = self.proj.apply(
-                {"params": params}, batch.embeddings,
-                method=self.proj.encode_image)
+        #     proj_embeddings = self.proj.apply(
+        #         {"params": params}, batch.embeddings,
+        #         method=self.proj.encode_image)
 
-            # cosine similarity
-            cosine = optax.cosine_similarity(proj_text_embedding, proj_embeddings)
-            cosine_delta = cosine.reshape(-1, 1) - cosine.reshape(1, -1)
+        #     # cosine similarity
+        #     cosine = optax.cosine_similarity(proj_text_embedding, proj_embeddings)
+        #     cosine_delta = cosine.reshape(-1, 1) - cosine.reshape(1, -1)
   
-            loss = (nn.relu(-cosine_delta + self.margin) * batch.masks).sum(-1).mean()
-            log_info = {"pos_loss": loss, "vlm_rewards": cosine}
+        #     loss = (nn.relu(-cosine_delta + self.margin) * batch.masks).sum(-1).mean()
+        #     log_info = {"pos_loss": loss, "vlm_rewards": cosine}
+        #     return loss, log_info
+        # grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
+        # (_, log_info), grad = grad_fn(proj_state.params)
+        proj_text_embedding = self.proj.apply(
+            {"params": proj_state.params}, self.text_embedding,
+            method=self.proj.encode_text)
+
+        proj_embeddings = self.proj.apply(
+            {"params": proj_state.params}, batch.embeddings,
+            method=self.proj.encode_image)
+
+        # cosine similarity
+        cosine = optax.cosine_similarity(proj_text_embedding, proj_embeddings)
+        log_info = {"vlm_rewards": cosine}
+        # new_proj_state = proj_state.apply_gradients(grads=grad)
+        return proj_state, log_info
+
+    @functools.partial(jax.jit, static_argnames=("self"))
+    def train_state_step(self, batch, proj_state):
+        def loss_fn(params):
+            embeddings = batch.embeddings
+            state_embeddings = self.proj.apply(
+                {"params": params}, batch.next_observations,
+                method=self.proj.encode_state)
+            
+            # 损失计算（均方误差）
+            loss = jnp.mean(jnp.square(state_embeddings - embeddings))
+            
+            # 日志信息
+            log_info = {"mse_loss": loss}
             return loss, log_info
+
+        # 计算梯度
         grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
         (_, log_info), grad = grad_fn(proj_state.params)
+        
+        # 应用梯度更新
         new_proj_state = proj_state.apply_gradients(grads=grad)
         return new_proj_state, log_info
-
+    def update_state(self, batch):
+        self.proj_state, log_info = self.train_state_step(batch, self.proj_state) 
+        return log_info
     def update_neg(self, batch):
         self.proj_state, log_info = self.train_neg_step(batch, self.proj_state) 
         return log_info

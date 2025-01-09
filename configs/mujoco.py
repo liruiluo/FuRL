@@ -7,13 +7,14 @@ def get_config():
     config.env_name = "peg-insert-side-v2-goal-observable"
     config.camera_id = 2
     config.residual = False
-    config.eval_episodes = 100
+    config.eval_episodes = 10
     config.start_timesteps = 10000
     config.max_timesteps = int(1e7)
     config.decay_timesteps = int(7.5e5)
     config.eval_freq = config.max_timesteps // 10
-    config.log_freq = config.max_timesteps // 100
+    config.log_freq = config.max_timesteps // 1000
     config.ckpt_freq = config.max_timesteps // 10
+    config.liv_freq = config.max_timesteps // 1000
     config.lr = 1e-4
     config.seed = 0
     config.tau = 0.01
@@ -22,6 +23,8 @@ def get_config():
     config.hidden_dims = (256, 256)
     config.initializer = "orthogonal"
     config.exp_name = "furl"
+    config.train_freq = 8
+    config.gradient_steps = 8
 
     # relay
     config.relay_threshold = 2500
