@@ -58,6 +58,8 @@ TASKS_TARGET = {
     "h1hand-slide-customized-v0": 700,
     "h1hand-stand-customized-v0": 800,
     "h1hand-walk-customized-v0": 700,
+    "h1hand-balance_simple-customized-v0": 800,
+    "h1hand-sit_simple-customized-v0": 750,
 }
 
 
