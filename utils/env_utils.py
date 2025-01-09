@@ -37,10 +37,27 @@ TASKS = {
     "h1hand-crawl-customized-v0": "a humanoid robot crawling",
     "h1hand-push-customized-v0": "a humanoid robot pushing a box to the target",
     "h1hand-reach-customized-v0": "a humanoid robot reaching the 3D point with the left hand",
-    "customized-humanoid": "a humanoid robot running",
+    "CustomizedHumanoid-v4": "a humanoid robot running",
     "h1hand_basketball-customized-v0": "a humanoid robot throwing a ball into the basket",
     "h1hand-cabinet-customized-v0": "a humanoid robot opening a cabinet door and putting a cube inside",
     "h1hand-slide-customized-v0": "a humanoid robot walking",
+    "h1hand-stand-customized-v0": "a humanoid robot standing",
+    "h1hand-walk-customized-v0": "a humanoid robot walking",
+}
+TASKS_TARGET = {
+    "h1hand-run-customized-v0": 700,
+    "h1hand-sit_hard-customized-v0": 750,
+    "h1hand-powerlift-customized-v0": 800,
+    "h1hand-balance_hard-customized-v0": 800,
+    "h1hand-crawl-customized-v0": 700,
+    "h1hand-push-customized-v0": 700,
+    "h1hand-reach-customized-v0": 12000,
+    "CustomizedHumanoid-v4": 7000,
+    "h1hand_basketball-customized-v0": 1200,
+    "h1hand-cabinet-customized-v0": 2500.,
+    "h1hand-slide-customized-v0": 700,
+    "h1hand-stand-customized-v0": 800,
+    "h1hand-walk-customized-v0": 700,
 }
 
 
@@ -132,7 +149,8 @@ def make_env(env_name: str = "drawer-open-v2-goal-hidden",
         env = ALL_V2_ENVIRONMENTS_GOAL_OBSERVABLE[env_name](seed=seed, render_mode=render_mode)
         env._freeze_rand_vec = False
     else:
-        env = gym.make(env_name, seed=seed, render_mode=render_mode)
+        env = gym.make(env_name, render_mode=render_mode)
+        env.action_space.seed(seed)
     env.camera_id = camera_id
     viewer = env.unwrapped.mujoco_renderer._get_viewer(render_mode=render_mode)
     viewer.viewport.width = image_size

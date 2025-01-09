@@ -13,17 +13,22 @@ class Projection(nn.Module):
     def setup(self):
         self.text_encoder = MLP(hidden_dims=(256, 64), activate_final=False)
         self.image_encoder = MLP(hidden_dims=(256, 64), activate_final=False)
+        self.state_encoder = MLP(hidden_dims=(1024,), activate_final=False)
 
-    def __call__(self, text_embedding, image_embedding):
+    def __call__(self, text_embedding, image_embedding, state):
         proj_text_embedding = self.text_encoder(text_embedding)
         proj_image_embedding = self.image_encoder(image_embedding)
-        return proj_text_embedding, proj_image_embedding
+        proj_state_embedding = self.state_encoder(state)
+        return proj_text_embedding, proj_image_embedding, proj_state_embedding
 
     def encode_image(self, image_embeddings):
         return self.image_encoder(image_embeddings)
 
     def encode_text(self, text_embedding):
         return self.text_encoder(text_embedding)
+
+    def encode_state(self, state):
+        return self.state_encoder(state)
 
 
 class RewardModel:
@@ -32,6 +37,7 @@ class RewardModel:
                  lr: float = 1e-4,
                  margin: float = 0.1,
                  emb_dim: int = 1024,
+                 state_dim: int = 151,
                  ckpt_dir: str = None,
                  text_embedding: jnp.ndarray = None,
                  goal_embedding: jnp.ndarray = None):
@@ -46,7 +52,8 @@ class RewardModel:
         self.proj = Projection()
         proj_params = self.proj.init(key,
                                      jnp.ones([1, 1024], dtype=jnp.float32),
-                                     dummy_emb)["params"]
+                                     dummy_emb,
+                                     jnp.ones([1, state_dim], dtype=jnp.float32))["params"]
         self.proj_state = train_state.TrainState.create(
             apply_fn=self.proj.apply,
             params=proj_params,
@@ -67,6 +74,13 @@ class RewardModel:
         cosine_similarity = optax.cosine_similarity(proj_img_embeddings,
                                                     proj_text_embedding)
         return cosine_similarity
+
+    @functools.partial(jax.jit, static_argnames=("self"))
+    def get_state_embeddings(self, proj_state, state):
+        proj_state_embeddings = self.proj.apply(
+            {"params": proj_state.params}, state,
+            method=self.proj.encode_state)
+        return proj_state_embeddings
 
     @functools.partial(jax.jit, static_argnames=("self"))
     def train_pos_step(self,
