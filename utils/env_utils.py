@@ -43,6 +43,8 @@ TASKS = {
     "h1hand-slide-customized-v0": "a humanoid robot walking",
     "h1hand-stand-customized-v0": "a humanoid robot standing",
     "h1hand-walk-customized-v0": "a humanoid robot walking",
+    "h1hand-balance_simple-customized-v0": "a humanoid robot balancing on the board",
+    "h1hand-sit_simple-customized-v0": "a humanoid robot sitting on a chair",
 }
 TASKS_TARGET = {
     "h1hand-run-customized-v0": 700,
