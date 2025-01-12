@@ -401,12 +401,6 @@ def train_and_evaluate(config: ml_collections.ConfigDict):
                     "eval_reward": eval_reward,
                     "eval_success": eval_success,
                     "state_loss": loss_info['mse_loss'],
-                    # "batch_reward": batch.rewards.mean(),
-                    # "batch_reward_max": batch.rewards.max(),
-                    # "batch_reward_min": batch.rewards.min(),
-                    # "batch_vlm_reward": batch_vlm_rewards.mean(),
-                    # "batch_vlm_reward_max": batch_vlm_rewards.max(),
-                    # "batch_vlm_reward_min": batch_vlm_rewards.min(),
                     "time": (time.time() - start_time) / 60,
                     "global_step": t,
                 }
@@ -425,14 +419,14 @@ def train_and_evaluate(config: ml_collections.ConfigDict):
                     f"task_reward: {lst_ep_task_reward:.2f}, "
                     f"vlm_reward: {lst_ep_vlm_reward:.2f}\n"
                 )
-            # save logs
-            log_df = pd.DataFrame(logs)
-            log_df.to_csv(f"logs/{exp_name}.csv")
+            # # save logs
+            # log_df = pd.DataFrame(logs)
+            # log_df.to_csv(f"logs/{exp_name}.csv")
 
 
-    # save logs
-    log_df = pd.DataFrame(logs)
-    log_df.to_csv(f"logs/{exp_name}.csv")
+    # # save logs
+    # log_df = pd.DataFrame(logs)
+    # log_df.to_csv(f"logs/{exp_name}.csv")
 
     wandb.finish()
     # close env
