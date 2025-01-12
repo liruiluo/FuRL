@@ -110,7 +110,7 @@ def setup_exp(config):
     eval_seed = config.seed if "hidden" in config.env_name else config.seed+100
     eval_env = make_env(config.env_name,
                         seed=eval_seed,
-                        image_size=480,
+                        image_size=224,
                         camera_id=config.camera_id)
 
     # environment parameter

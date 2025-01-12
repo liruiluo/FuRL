@@ -41,6 +41,7 @@ TASKS = {
     "h1hand_basketball-customized-v0": "a humanoid robot throwing a ball into the basket",
     "h1hand-cabinet-customized-v0": "a humanoid robot opening a cabinet door and putting a cube inside",
     "h1hand-slide-customized-v0": "a humanoid robot walking",
+    "h1hand-stair-customized-v0": "a humanoid robot walking",
     "h1hand-stand-customized-v0": "a humanoid robot standing",
     "h1hand-walk-customized-v0": "a humanoid robot walking",
     "h1hand-balance_simple-customized-v0": "a humanoid robot balancing on the board",
@@ -62,6 +63,7 @@ TASKS_TARGET = {
     "h1hand-walk-customized-v0": 700,
     "h1hand-balance_simple-customized-v0": 800,
     "h1hand-sit_simple-customized-v0": 750,
+    "h1hand-stair-customized-v0": 700,
 }
 
 
@@ -141,8 +143,8 @@ class RepeatAction(gym.Wrapper):
 def make_env(env_name: str = "drawer-open-v2-goal-hidden",
              seed: int = 42,
              camera_id: int = 1,
-             render_image_size: int = 256,
-             image_size: int = 256,  # 84
+             render_image_size: int = 224,
+             image_size: int = 224,  # 84
              use_pixel: bool = False,
              action_repeat: int = 1,
              render_mode: str = "rgb_array"):
