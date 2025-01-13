@@ -7,11 +7,17 @@ Install the conda env via:
 ```shell
 conda create --name furl python==3.11
 conda activate furl
+conda install pytorch==2.3.1 torchvision==0.18.1 pytorch-cuda=12.1 -c pytorch -c nvidia
 pip install -r requirements.txt
+git clone https://github.com/carlosferrazza/humanoid-bench.git
 cd humanoid-bench/ 
 pip install -e .
+pip install "jax[cuda12]"
 cd ..
+pip uninstall torch torchvision torchaudio
+pip uninstall jax jaxlib
 pip install torch torchvision torchaudio
+pip install --upgrade flax jax jaxlib
 ```
 
 ## Training
