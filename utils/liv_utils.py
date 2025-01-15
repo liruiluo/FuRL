@@ -66,7 +66,7 @@ def load_liv(model_id="resnet50"):
         'l1weight': 0.001
     }
     """
-    base_dir = os.path.join(expanduser("~"), ".liv")
+    base_dir = os.path.join(os.getcwd(), "ckpt")
     os.makedirs(os.path.join(base_dir, model_id), exist_ok=True)
 
     folder_dir = os.path.join(base_dir, model_id)
