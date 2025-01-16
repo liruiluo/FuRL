@@ -22,32 +22,42 @@ pip install --upgrade flax jax jaxlib
 
 ## Training
 
-### Generating Expert Dataset
+```bash
+python main.py --config.env_name=h1hand-run-customized-v0 --config.exp_name="furl" --config.seed=0
+python main.py --config.env_name=h1hand-run-customized-v0 --config.exp_name="furl" --config.seed=1
+python main.py --config.env_name=h1hand-run-customized-v0 --config.exp_name="furl" --config.seed=2
 
-An optional setting in FuRL is to use a goal image to accelerate the exploration before we collected the first successful trajectory.
+python main.py --config.env_name=h1hand-walk-customized-v0 --config.exp_name="furl" --config.seed=0
+python main.py --config.env_name=h1hand-walk-customized-v0 --config.exp_name="furl" --config.seed=1
+python main.py --config.env_name=h1hand-walk-customized-v0 --config.exp_name="furl" --config.seed=2
 
-```script
-python main.py --config.env_name=door-open-v2-goal-hidden --config.exp_name=oracle
-```
+python main.py --config.env_name=h1hand-sit_hard-customized-v0 --config.exp_name="furl" --config.seed=0
+python main.py --config.env_name=h1hand-sit_hard-customized-v0 --config.exp_name="furl" --config.seed=1
+python main.py --config.env_name=h1hand-sit_hard-customized-v0 --config.exp_name="furl" --config.seed=2
 
-The oracle trajectory data will be saved in `data/oracle`.
+python main.py --config.env_name=h1hand-stair-customized-v0 --config.exp_name="furl" --config.seed=0
+python main.py --config.env_name=h1hand-stair-customized-v0 --config.exp_name="furl" --config.seed=1
+python main.py --config.env_name=h1hand-stair-customized-v0 --config.exp_name="furl" --config.seed=2
 
-### Example on Fixed-goal Task
+python main.py --config.env_name=h1hand-stand-customized-v0 --config.exp_name="furl" --config.seed=0
+python main.py --config.env_name=h1hand-stand-customized-v0 --config.exp_name="furl" --config.seed=1
+python main.py --config.env_name=h1hand-stand-customized-v0 --config.exp_name="furl" --config.seed=2
 
-```
-python main.py --config.env_name=door-open-v2-goal-hidden --config.exp_name=furl
-```
+python main.py --config.env_name=h1hand-balance_simple-customized-v0 --config.exp_name="furl" --config.seed=0
+python main.py --config.env_name=h1hand-balance_simple-customized-v0 --config.exp_name="furl" --config.seed=1
+python main.py --config.env_name=h1hand-balance_simple-customized-v0 --config.exp_name="furl" --config.seed=2
 
-### Example on Random-goal Task
+python main.py --config.env_name=h1hand-sit_simple-customized-v0 --config.exp_name="furl" --config.seed=0
+python main.py --config.env_name=h1hand-sit_simple-customized-v0 --config.exp_name="furl" --config.seed=1
+python main.py --config.env_name=h1hand-sit_simple-customized-v0 --config.exp_name="furl" --config.seed=2
 
-```
-python main.py --config.env_name=door-open-v2-goal-observable --config.exp_name=furl
-```
+python main.py --config.env_name=h1hand-slide-customized-v0 --config.exp_name="furl" --config.seed=0
+python main.py --config.env_name=h1hand-slide-customized-v0 --config.exp_name="furl" --config.seed=1
+python main.py --config.env_name=h1hand-slide-customized-v0 --config.exp_name="furl" --config.seed=2
 
-### Example on Humanoidbench Task
-
-```
-python main.py --config.env_name=h1hand-run --config.exp_name=furl
+python main.py --config.env_name=h1hand-balance_hard-customized-v0 --config.exp_name="furl" --config.seed=0
+python main.py --config.env_name=h1hand-balance_hard-customized-v0 --config.exp_name="furl" --config.seed=1
+python main.py --config.env_name=h1hand-balance_hard-customized-v0 --config.exp_name="furl" --config.seed=2
 ```
 
 ## Paper
