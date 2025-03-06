@@ -9,3 +9,4 @@ outputs
 slurm
 furl.sh
 wandb
+humanoid-bench/data
