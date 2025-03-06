@@ -14,7 +14,7 @@ def get_config():
     config.eval_freq = config.max_timesteps // 10
     config.log_freq = config.max_timesteps // 1000
     config.ckpt_freq = config.max_timesteps // 10
-    config.liv_freq = config.max_timesteps // 1000
+    config.liv_freq = 9
     config.lr = 1e-4
     config.seed = 0
     config.tau = 0.01
