@@ -68,36 +68,43 @@ def load_liv(model_id="resnet50"):
     """
     base_dir = os.path.join(os.getcwd(), "ckpt")
     os.makedirs(os.path.join(base_dir, model_id), exist_ok=True)
-
     folder_dir = os.path.join(base_dir, model_id)
     model_dir = os.path.join(base_dir, model_id, "model.pt")
     config_dir = os.path.join(base_dir, model_id, "config.yaml")
-
-    try: 
-        hf_hub_download(repo_id="jasonyma/LIV",
-                        filename="model.pt",
-                        local_dir=folder_dir)
-        hf_hub_download(repo_id="jasonyma/LIV",
-                        filename="config.yaml",
-                        local_dir=folder_dir)
-    except:
-        model_url = "https://drive.google.com/uc?id=1l1ufzVLxpE5BK7JY6ZnVBljVzmK5c4P3"
-        config_url = "https://drive.google.com/uc?id=1GWA5oSJDuHGB2WEdyZZmkro83FNmtaWl"
-        if not os.path.exists(model_dir):
+    
+    # 检查模型文件是否存在
+    if os.path.exists(model_dir) and os.path.exists(config_dir):
+        # 如果模型存在，直接加载模型
+        model_config = omegaconf.OmegaConf.load(config_dir)
+        clean_config = cleanup_config(model_config)
+        liv_model = hydra.utils.instantiate(clean_config)
+        liv_model = torch.nn.DataParallel(liv_model)
+        liv_state_dict = torch.load(model_dir, map_location=torch.device(device))["liv"]
+        liv_model.load_state_dict(liv_state_dict)
+        liv_model.eval()
+        return liv_model
+    else:
+        # 如果模型不存在，可以在这里添加下载逻辑
+        # 例如：
+        try:
+            hf_hub_download(repo_id="jasonyma/LIV",
+                          filename="model.pt",
+                          local_dir=folder_dir)
+            hf_hub_download(repo_id="jasonyma/LIV",
+                          filename="config.yaml",
+                          local_dir=folder_dir)
+        except:
+            model_url = "https://drive.google.com/uc?id=1l1ufzVLxpE5BK7JY6ZnVBljVzmK5c4P3"
+            config_url = "https://drive.google.com/uc?id=1GWA5oSJDuHGB2WEdyZZmkro83FNmtaWl"
             gdown.download(model_url, model_dir, quiet=False)
             gdown.download(config_url, config_dir, quiet=False)
-        else:
-            load_state_dict_from_url(model_url,
-                                     folder_dir,
-                                     map_location=torch.device(device))
-            load_state_dict_from_url(config_url, folder_dir)
-
-    model_config = omegaconf.OmegaConf.load(config_dir)
-    clean_config = cleanup_config(model_config)
-
-    liv_model = hydra.utils.instantiate(clean_config)
-    liv_model = torch.nn.DataParallel(liv_model)
-    liv_state_dict = torch.load(model_dir, map_location=torch.device(device))["liv"]
-    liv_model.load_state_dict(liv_state_dict)
-    liv_model.eval()
-    return liv_model
+        
+        # 下载完成后加载模型
+        model_config = omegaconf.OmegaConf.load(config_dir)
+        clean_config = cleanup_config(model_config)
+        liv_model = hydra.utils.instantiate(clean_config)
+        liv_model = torch.nn.DataParallel(liv_model)
+        liv_state_dict = torch.load(model_dir, map_location=torch.device(device))["liv"]
+        liv_model.load_state_dict(liv_state_dict)
+        liv_model.eval()
+        return liv_model

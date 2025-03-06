@@ -259,13 +259,14 @@ def train_and_evaluate(config: ml_collections.ConfigDict):
         next_obs, task_reward, terminated, truncated, info = env.step(action)
 
         # vision language model reward
-        image = env.mujoco_renderer.render(
-            render_mode="rgb_array",
-            camera_id=config.camera_id).copy()
-        image = image[::-1]
-        image = crop_center(config, image)
-        processed_image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-        processed_image = transform(processed_image)
+        if t%config.liv_freq == 0:
+            image = env.mujoco_renderer.render(
+                render_mode="rgb_array",
+                camera_id=config.camera_id).copy()
+            image = image[::-1]
+            image = crop_center(config, image)
+            processed_image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+            processed_image = transform(processed_image)
         with torch.no_grad():
             if t%config.liv_freq == 0:
                 image_embedding = liv(input=processed_image.to("cuda")[None], modality="vision") # torch.Size([1, 1024])
