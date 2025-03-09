@@ -9,7 +9,7 @@ import pandas as pd
 
 from tqdm import trange
 from models import SACAgent
-from utils import ReplayBuffer, log_git, get_logger, make_env
+from furl_utils import ReplayBuffer, log_git, get_logger, make_env
 
 
 ###################

@@ -5,7 +5,7 @@ import imageio
 import numpy as np
 import gymnasium as gym
 import ml_collections
-from utils import make_env, load_liv, TASKS
+from furl_utils import make_env, load_liv, TASKS
 
 
 from metaworld.policies import (SawyerButtonPressTopdownV2Policy,

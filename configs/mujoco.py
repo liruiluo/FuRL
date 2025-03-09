@@ -14,7 +14,11 @@ def get_config():
     config.eval_freq = config.max_timesteps // 10
     config.log_freq = config.max_timesteps // 1000
     config.ckpt_freq = config.max_timesteps // 10
-    config.liv_freq = 72 # 9freq*8frame*(8frameseq)
+    config.liv_freq = 576 # 9freq*8frame*(8frameseq)
+    config.stack=8 
+    config.video_length=64
+    config.rendering_freq=8
+    config.sampling_freq=9
     config.lr = 1e-4
     config.seed = 0
     config.tau = 0.01

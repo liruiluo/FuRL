@@ -13,7 +13,7 @@ class Projection(nn.Module):
     def setup(self):
         self.text_encoder = MLP(hidden_dims=(256, 64), activate_final=False)
         self.image_encoder = MLP(hidden_dims=(256, 64), activate_final=False)
-        self.state_encoder = MLP(hidden_dims=(1024,), activate_final=False)
+        self.state_encoder = MLP(hidden_dims=(768,), activate_final=False)
 
     def __call__(self, text_embedding, image_embedding, state):
         proj_text_embedding = self.text_encoder(text_embedding)
@@ -36,7 +36,7 @@ class RewardModel:
                  seed: int = 42,
                  lr: float = 1e-4,
                  margin: float = 0.1,
-                 emb_dim: int = 1024,
+                 emb_dim: int = 768,
                  state_dim: int = 151,
                  ckpt_dir: str = None,
                  text_embedding: jnp.ndarray = None,
@@ -51,7 +51,7 @@ class RewardModel:
 
         self.proj = Projection()
         proj_params = self.proj.init(key,
-                                     jnp.ones([1, 1024], dtype=jnp.float32),
+                                     jnp.ones([1, 768], dtype=jnp.float32),
                                      dummy_emb,
                                      jnp.ones([1, state_dim], dtype=jnp.float32))["params"]
         self.proj_state = train_state.TrainState.create(

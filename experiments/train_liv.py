@@ -17,7 +17,7 @@ import torchvision.transforms as T
 
 from tqdm import trange
 from models import VLMAgent
-from utils import (TASKS, VLMBuffer, log_git, get_logger, make_env, load_liv)
+from furl_utils import (TASKS, VLMBuffer, log_git, get_logger, make_env, load_liv)
 
 
 ###################

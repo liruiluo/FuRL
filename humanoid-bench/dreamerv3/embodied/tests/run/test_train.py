@@ -9,7 +9,7 @@ import embodied
 import numpy as np
 import pytest
 
-import utils
+import furl_utils
 
 
 class TestTrain:
@@ -47,7 +47,7 @@ class TestTrain:
 
     def _make_agent(self):
         env = self._make_env(0)
-        agent = utils.TestAgent(env.obs_space, env.act_space)
+        agent = furl_utils.TestAgent(env.obs_space, env.act_space)
         env.close()
         return agent
 

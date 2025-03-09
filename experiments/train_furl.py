@@ -17,10 +17,11 @@ import torchvision.transforms as T
 
 from tqdm import trange
 from models import SACAgent, FuRLAgent, RewardModel
-from utils import (TASKS, DistanceBuffer, EmbeddingBuffer, log_git,
+from furl_utils import (TASKS, DistanceBuffer, EmbeddingBuffer, log_git,
                    get_logger, make_env, load_liv,TASKS_TARGET)
 import wandb
 import jax.numpy as jnp
+from vlms.ViCLIP.viclip import ViCLIP
 
 
 ###################
@@ -86,22 +87,15 @@ def setup_logging(config):
 def setup_exp(config):
     # liv
     transform = T.Compose([T.ToTensor()])
-    liv = load_liv()
-
+    # liv = load_liv()
+    viclip = ViCLIP(pretrained="/home/l/Downloads/lm_reward_jax/ckpts/ViCLIP/ViCLIP-L_InternVid-FLT-10M.pth", target_prompts=TASKS[config.env_name], image_width=224).to("cuda")
+    viclip.eval()
+    text_embedding = viclip.text_features
     # task description embedding
-    with torch.no_grad():
-        token = clip.tokenize([TASKS[config.env_name]])
-        text_embedding = liv(input=token, modality="text")
+    # with torch.no_grad():
+    #     token = clip.tokenize([TASKS[config.env_name]])
+    #     text_embedding = liv(input=token, modality="text")
     text_embedding = text_embedding.detach().cpu().numpy()
-    if config.goal:
-        data = np.load(f"data/oracle/{config.env_name}/s0_c{config.camera_id}.npz")
-    else:
-        data = np.load(f"data/oracle/door-open-v2-goal-hidden/s0_c2.npz")
-
-    # goal_embedding / text_embedding
-    oracle_images = data["images"]
-    oracle_success = data["success"]
-    oracle_traj_len = np.where(oracle_success)[0][0] + 1  # 84
 
     # initialize the environment
     env = make_env(config.env_name,
@@ -117,12 +111,6 @@ def setup_exp(config):
     obs_dim = env.observation_space.shape[0]
     act_dim = env.action_space.shape[0]
     max_action = env.action_space.high[0]
-    goal_image = data["images"][oracle_traj_len-1]
-    goal_image = crop_center(config, goal_image)
-    processed_goal_image = cv2.cvtColor(goal_image, cv2.COLOR_RGB2BGR)
-    processed_goal_image = transform(processed_goal_image)
-    goal_embedding = liv(input=processed_goal_image.to("cuda")[None], modality="vision")
-    goal_embedding = goal_embedding.detach().cpu().numpy()
 
     # fixed LIV representation projection
     vlm_agent = FuRLAgent(obs_dim=obs_dim,
@@ -135,7 +123,7 @@ def setup_exp(config):
                           gamma=config.gamma,
                           lr=config.lr,
                           text_embedding=text_embedding,
-                          goal_embedding=goal_embedding,
+                          goal_embedding=None,
                           hidden_dims=config.hidden_dims)
 
     # SAC agent
@@ -152,7 +140,7 @@ def setup_exp(config):
     reward_model = RewardModel(seed=config.seed,
                                state_dim=obs_dim,
                                text_embedding=text_embedding,
-                               goal_embedding=goal_embedding)
+                               goal_embedding=None)
 
     # Replay buffer
     replay_buffer = DistanceBuffer(obs_dim=obs_dim,
@@ -164,14 +152,14 @@ def setup_exp(config):
                                    max_size=int(5e5))
     return (
         transform,
-        liv,
+        viclip,
         env,
         eval_env,
         vlm_agent,
         sac_agent,
         reward_model,
         replay_buffer,
-        goal_image,
+        None,
         replay_buffer_distill,
     )
 
@@ -187,7 +175,7 @@ def train_and_evaluate(config: ml_collections.ConfigDict):
  
     # experiment setup
     (transform,
-     liv,
+     viclip,
      env,
      eval_env,
      vlm_agent,
@@ -212,10 +200,10 @@ def train_and_evaluate(config: ml_collections.ConfigDict):
     first_success_step = 0
 
     # trajectory embedding
-    embedding_buffer = EmbeddingBuffer(emb_dim=1024,
+    embedding_buffer = EmbeddingBuffer(emb_dim=768,
                                        gap=config.gap,
                                        max_size=config.embed_buffer_size)
-    traj_embeddings = np.zeros((1000, 1024))
+    traj_embeddings = np.zeros((1000, 768))
     traj_success = np.zeros(1000)
 
     # relay freqs
@@ -225,19 +213,15 @@ def train_and_evaluate(config: ml_collections.ConfigDict):
 
     # start training
     obs, _ = env.reset()
-    goal = obs[-3:]
     reward, ep_task_reward, ep_vlm_reward = 0, 0, 0
     success_cnt, ep_num, ep_step = 0, 0, 0
     lst_ep_step, lst_ep_task_reward, lst_ep_vlm_reward = 0, 0, 0
     sac_step, vlm_step = 0, 0
-    lst_sac_step, lst_vlm_step = 0, 0
     policies = ["vlm", "sac"]
     use_relay = True
-    pos_cosine = neg_cosine = lag_cosine = 0
-    pos_cosine_max = neg_cosine_max = lag_cosine_max = 0
-    pos_cosine_min = neg_cosine_min = lag_cosine_min = 0
-    neg_num = neg_loss = neg_loss_max = 0
-    pos_num = pos_loss = pos_loss_max = 0
+    render_arrays = []
+    episode_numer_from_last = 0
+    dummy_render_array = None
     for t in trange(1, config.max_timesteps + 1):
         if t <= config.start_timesteps:
             action = env.action_space.sample()
@@ -258,18 +242,40 @@ def train_and_evaluate(config: ml_collections.ConfigDict):
                 action = vlm_agent.sample_action(obs)
         next_obs, task_reward, terminated, truncated, info = env.step(action)
 
+        if terminated or truncated:
+            episode_numer_from_last += 1
+            if episode_numer_from_last > config.sampling_freq:
+                episode_numer_from_last = 0
+
         # vision language model reward
-        if t%config.liv_freq == 0:
-            image = env.mujoco_renderer.render(
-                render_mode="rgb_array",
-                camera_id=config.camera_id).copy()
-            image = image[::-1]
-            image = crop_center(config, image)
-            processed_image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-            processed_image = transform(processed_image)
+        if episode_numer_from_last == config.sampling_freq:
+            if t % config.rendering_freq == 0:
+                image = env.mujoco_renderer.render(
+                    render_mode="rgb_array",
+                    camera_id=config.camera_id).copy()
+                # image = image[::-1]
+                # image = crop_center(config, image)
+                # processed_image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+                # processed_image = transform(processed_image)
+                processed_image = image
+                rendered = 1
+                render_arrays.append(processed_image)
+        # else:
+        #     if dummy_render_array is None:
+        #         dummy_render_array = buffer[-1]["render_array"].copy()
+        #     render_array = dummy_render_array
+        #     rendered = 0
+        # buffer.append(dict(
+        #     render_array=render_array, rendered=rendered))
+
         with torch.no_grad():
-            if t%config.liv_freq == 0:
-                image_embedding = liv(input=processed_image.to("cuda")[None], modality="vision") # torch.Size([1, 1024])
+            # if t%config.liv_freq == 0:
+            if len(render_arrays)==config.stack:
+                clip = np.stack(render_arrays,axis=0)
+                render_arrays.clear()
+                image_embedding = viclip.encode_stacked_image(clip, n_stack=8)
+                vlm_reward = viclip(image_embedding)
+                # image_embedding = liv(input=processed_image.to("cuda")[None], modality="vision") # torch.Size([1, 768])
                 image_embedding = image_embedding.detach().cpu().numpy()
                 # add to buffer
                 replay_buffer_distill.add(obs,

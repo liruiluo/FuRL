@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from flax import linen as nn
 from flax.core import FrozenDict
 from flax.training import train_state, orbax_utils
-from utils import Batch, target_update
+from furl_utils import Batch, target_update
 from models import Actor, DoubleCritic, Scalar
 
 

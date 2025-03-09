@@ -10,7 +10,7 @@ import embodied
 import numpy as np
 import pytest
 
-import utils
+import furl_utils
 
 PORTS = iter(range(7000, 8000))
 
@@ -58,7 +58,7 @@ class TestParallel:
 
     def _make_agent(self, queue):
         env = self._make_env(0)
-        agent = utils.TestAgent(env.obs_space, env.act_space, queue)
+        agent = furl_utils.TestAgent(env.obs_space, env.act_space, queue)
         env.close()
         return agent
 

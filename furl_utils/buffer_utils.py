@@ -129,7 +129,7 @@ class DistanceBuffer:
     def __init__(self,
                  obs_dim: int,
                  act_dim: int,
-                 emb_dim: int = 1024,
+                 emb_dim: int = 768,
                  max_size: int = int(1e6)):
         self.max_size = max_size
         self.ptr = 0
