@@ -29,6 +29,7 @@ def get_config():
     config.exp_name = "furl"
     config.train_freq = 8
     config.gradient_steps = 8
+    config.viclip_path = "/home/l/Downloads/lm_reward_jax/ckpts/ViCLIP/ViCLIP-L_InternVid-FLT-10M.pth"
 
     # relay
     config.relay_threshold = 2500

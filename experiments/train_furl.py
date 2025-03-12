@@ -88,7 +88,7 @@ def setup_exp(config):
     # liv
     transform = T.Compose([T.ToTensor()])
     # liv = load_liv()
-    viclip = ViCLIP(pretrained="/home/l/Downloads/lm_reward_jax/ckpts/ViCLIP/ViCLIP-L_InternVid-FLT-10M.pth", target_prompts=TASKS[config.env_name], image_width=224).to("cuda")
+    viclip = ViCLIP(pretrained=config.viclip_path, target_prompts=TASKS[config.env_name], image_width=224).to("cuda")
     viclip.eval()
     text_embedding = viclip.text_features
     # task description embedding
